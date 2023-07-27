@@ -2,29 +2,33 @@
 {
     public static async Task Main()
     {
+        const int numberOfProducers = 2;
+        const int numberOfConsumers = 2;
+
         List<int> list = new List<int>();
+        List<Task> workers = new List<Task>();
+        Producer producer = new Producer();
+        Consumer consumer = new Consumer();
 
-        var firstProducer = new Producer();
-        var secondProducer = new Producer();
+        CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-        var firstConsumer = new Consumer();
-        var secondConsumer = new Consumer();
-
-        var firstProducing = firstProducer.Produce(list);
-        var secondProducing = firstProducer.Produce(list);
-
-        await Task.WhenAll(firstProducing, secondProducing);
-        Console.Write("The items of list are: ");
-        foreach(var item in list)
+        for(int i=0; i < numberOfProducers; i++)
         {
-            Console.Write(item +" ");
+            var producing = producer.Produce(list, cancellationTokenSource.Token);
+            workers.Add(producing);
         }
 
-        var firstConsuming = firstConsumer.Consume(list);
-        var secondConsuming = secondConsumer.Consume(list);
-        await Task.WhenAll(firstConsuming, secondConsuming);
+        for (int i = 0; i < numberOfConsumers; i++)
+        {
+            workers.Add(consumer.Consume(list, cancellationTokenSource.Token));
+        }
 
-        Console.WriteLine("\n\nThe list is having: " + list.Count + " numbers now");
+        await Task.Delay(5 * 1000);
+        cancellationTokenSource.Cancel();
+      
+        await Task.WhenAll(workers);        
+
+        Console.WriteLine("\nThe list is having: " + list.Count + " numbers now");
     }
 }
 
@@ -32,13 +36,15 @@ public class Producer
 {
     Random rand = new Random();
 
-    public async Task Produce(List<int> list)
+    public async Task Produce(List<int> list, CancellationToken cancellationToken)
     {
-        for (int i = 0; i < 10; i++)
+        while(!cancellationToken.IsCancellationRequested)
         {
+            await Task.Delay(250);
             lock (list)
             {
                 int newNumber = rand.Next(1, 100);
+                Console.WriteLine($"Produced: {newNumber}");
                 list.Add(newNumber);
             }
         }
@@ -47,13 +53,21 @@ public class Producer
 
 public class Consumer
 {
-    public async Task Consume(List<int> list)
+    public async Task Consume(List<int> list, CancellationToken cancellationToken)
     {
-        while(list.Count > 0)
-        { 
+        while(!cancellationToken.IsCancellationRequested)
+        {
+            await Task.Delay(500);
             lock (list)
             {
-                list.RemoveAt(list.Count - 1);
+                if (!list.Any())
+                {
+                    continue;
+                }
+
+                var firstElement = list.First();
+                list.Remove(firstElement);
+                Console.WriteLine($"\t\tConsumed: {firstElement}");
             }
         }
     }
