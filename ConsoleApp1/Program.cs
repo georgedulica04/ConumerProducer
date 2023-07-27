@@ -17,7 +17,6 @@
             var producing = producer.Produce(list, cancellationTokenSource.Token);
             workers.Add(producing);
         }
-
         for (int i = 0; i < numberOfConsumers; i++)
         {
             workers.Add(consumer.Consume(list, cancellationTokenSource.Token));
@@ -25,10 +24,9 @@
 
         await Task.Delay(5 * 1000);
         cancellationTokenSource.Cancel();
-      
         await Task.WhenAll(workers);        
 
-        Console.WriteLine("\nThe list is having: " + list.Count + " numbers now");
+        Console.WriteLine("\nThe list is having " + list.Count + " numbers now");
     }
 }
 
