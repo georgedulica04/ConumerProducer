@@ -47,8 +47,6 @@ public class Producer
 
 public class Consumer
 {
-    Random rand = new Random();
-
     public async Task Consume(List<int> list)
     {
         while(list.Count > 0)
