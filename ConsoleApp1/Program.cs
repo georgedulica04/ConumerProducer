@@ -1,72 +1,73 @@
-﻿public class Program
+﻿using ConsoleApp1;
+
+public class Program
 {
     public static async Task Main()
     {
         const int numberOfProducers = 2;
         const int numberOfConsumers = 2;
-
-        List<int> list = new List<int>();
+        
+        ThreadSafeList<int> list = new ThreadSafeList<int>();
         List<Task> workers = new List<Task>();
-        Producer producer = new Producer();
-        Consumer consumer = new Consumer();
+        Producer<int> producerOfInt = new Producer<int>();
+        Consumer<int> consumerOfInt = new Consumer<int>();
+        RandomGenerator<int> randomGeneratorOfInt = new RandomGenerator<int>();
 
         CancellationTokenSource cancellationTokenSource = new CancellationTokenSource();
 
-        for(int i=0; i < numberOfProducers; i++)
+        for (int i = 0; i < numberOfProducers; i++)
         {
-            var producing = producer.Produce(list, cancellationTokenSource.Token);
+            var producing = producerOfInt.Produce(list, cancellationTokenSource.Token, randomGeneratorOfInt);
             workers.Add(producing);
         }
         for (int i = 0; i < numberOfConsumers; i++)
         {
-            workers.Add(consumer.Consume(list, cancellationTokenSource.Token));
+            workers.Add(consumerOfInt.Consume(list, cancellationTokenSource.Token));
         }
+
+        var readOnlyConsumerTask = consumerOfInt.ReadOnlyConsumer(list, cancellationTokenSource.Token);
+        workers.Add(readOnlyConsumerTask);
+
+        var timer1 = new Sanitizer<int>();
+        timer1.Start(list);
 
         await Task.Delay(5 * 1000);
+
+        timer1.Stop();
         cancellationTokenSource.Cancel();
-        await Task.WhenAll(workers);        
+        await Task.WhenAll(workers);
 
-        Console.WriteLine("\nThe list is having " + list.Count + " numbers now");
-    }
-}
+        Console.WriteLine("\nProcess of generating random int values is completed");
 
-public class Producer
-{
-    Random rand = new Random();
+        ThreadSafeList<double> listOfDouble = new ThreadSafeList<double>();
+        Producer<double> producerOfDouble = new Producer<double>();
+        Consumer<double> consumerOfDouble = new Consumer<double>();
+        RandomGenerator<double> randomGeneratorOfDouble = new RandomGenerator<double>();
 
-    public async Task Produce(List<int> list, CancellationToken cancellationToken)
-    {
-        while(!cancellationToken.IsCancellationRequested)
+        CancellationTokenSource cancellationTokenSource2 = new CancellationTokenSource();
+
+        for (int i = 0; i < numberOfProducers; i++)
         {
-            await Task.Delay(250);
-            lock (list)
-            {
-                int newNumber = rand.Next(1, 100);
-                Console.WriteLine($"Produced: {newNumber}");
-                list.Add(newNumber);
-            }
+            var producing = producerOfDouble.Produce(listOfDouble, cancellationTokenSource2.Token, randomGeneratorOfDouble);
+            workers.Add(producing);
         }
-    }
-}
-
-public class Consumer
-{
-    public async Task Consume(List<int> list, CancellationToken cancellationToken)
-    {
-        while(!cancellationToken.IsCancellationRequested)
+        for (int i = 0; i < numberOfConsumers; i++)
         {
-            await Task.Delay(500);
-            lock (list)
-            {
-                if (!list.Any())
-                {
-                    continue;
-                }
-
-                var firstElement = list.First();
-                list.Remove(firstElement);
-                Console.WriteLine($"\t\tConsumed: {firstElement}");
-            }
+            workers.Add(consumerOfDouble.Consume(listOfDouble, cancellationTokenSource.Token));
         }
+
+        var readOnlyConsumerTask2 = consumerOfDouble.ReadOnlyConsumer(listOfDouble, cancellationTokenSource2.Token);
+        workers.Add(readOnlyConsumerTask2);
+
+        var timer2 = new Sanitizer<double>();
+        timer2.Start(listOfDouble);
+
+        await Task.Delay(5 * 1000);
+        timer2.Stop();
+        cancellationTokenSource2.Cancel();
+
+        await Task.WhenAll(workers);
+
+        Console.WriteLine("\nProcess of generating random double values is completed");
     }
 }
